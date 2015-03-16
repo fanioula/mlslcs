@@ -30,8 +30,8 @@ import gr.auth.ee.lcs.data.AbstractUpdateStrategy;
 import gr.auth.ee.lcs.data.ILCSMetric;
 import gr.auth.ee.lcs.data.representations.complex.GenericMultiLabelRepresentation;
 import gr.auth.ee.lcs.data.representations.complex.GenericMultiLabelRepresentation.VotingClassificationStrategy;
-import gr.auth.ee.lcs.data.updateAlgorithms.MlASLCS3UpdateAlgorithm;
-import gr.auth.ee.lcs.data.updateAlgorithms.MlASLCS3UpdateAlgorithm.EvolutionTimeMeasurements;
+import gr.auth.ee.lcs.data.updateAlgorithms.MLSLCSUpdateAlgorithm;
+import gr.auth.ee.lcs.data.updateAlgorithms.MLSLCSUpdateAlgorithm.EvolutionTimeMeasurements;
 import gr.auth.ee.lcs.data.updateAlgorithms.MlASLCS4UpdateAlgorithm;
 import gr.auth.ee.lcs.evaluators.AccuracyRecallEvaluator;
 import gr.auth.ee.lcs.evaluators.ExactMatchEvalutor;
@@ -98,17 +98,17 @@ public class MLSLCS extends AbstractLearningClassifierSystem {
 	/**
 	 * The UCS n power parameter.
 	 */
-	private final int ASLCS_N = (int) SettingsLoader.getNumericSetting("ASLCS_N", 10);
+	private final int N = (int) SettingsLoader.getNumericSetting("N", 10);
 
 	/**
 	 * The accuracy threshold parameter.
 	 */
-	private final double ASLCS_ACC0 = SettingsLoader.getNumericSetting("ASLCS_Acc0", .99);
+	private final double ACC0 = SettingsLoader.getNumericSetting("Acc0", .99);
 
 	/**
 	 * The UCS experience threshold.
 	 */
-	private final int ASLCS_EXPERIENCE_THRESHOLD = (int) SettingsLoader.getNumericSetting("ASLCS_ExperienceTheshold", 10);
+	private final int EXPERIENCE_THRESHOLD = (int) SettingsLoader.getNumericSetting("THETA_EXP", 10);
 	
 	/**
 	 * The attribute generalization rate.
@@ -229,9 +229,9 @@ public class MLSLCS extends AbstractLearningClassifierSystem {
 
 		
 		if (UPDATE_ALGORITHM_VERSION == 3) {
-			MlASLCS3UpdateAlgorithm strategy = new MlASLCS3UpdateAlgorithm(ASLCS_N, 
-																			 ASLCS_ACC0,
-																		     ASLCS_EXPERIENCE_THRESHOLD, 
+			MLSLCSUpdateAlgorithm strategy = new MLSLCSUpdateAlgorithm(N, 
+																			 ACC0,
+																		     EXPERIENCE_THRESHOLD, 
 																			 ga,
 																			 numberOfLabels,
 																			 this);
@@ -240,9 +240,9 @@ public class MLSLCS extends AbstractLearningClassifierSystem {
 		}
 	
 		else if (UPDATE_ALGORITHM_VERSION == 4) {
-			MlASLCS4UpdateAlgorithm strategy = new MlASLCS4UpdateAlgorithm(ASLCS_N, 
-																			 ASLCS_ACC0,
-																		     ASLCS_EXPERIENCE_THRESHOLD, 
+			MlASLCS4UpdateAlgorithm strategy = new MlASLCS4UpdateAlgorithm(N, 
+																			 ACC0,
+																		     EXPERIENCE_THRESHOLD, 
 																			 ga,
 																			 numberOfLabels,
 																			 this);
@@ -503,8 +503,8 @@ public class MLSLCS extends AbstractLearningClassifierSystem {
 		String etm0 = this.hookedMetricsFileDirectory + "/etm0.txt";
 		String etm1 = this.hookedMetricsFileDirectory + "/etm1.txt";
 				
-		Vector<EvolutionTimeMeasurements> measurements0 = MlASLCS3UpdateAlgorithm.measurements0;
-		Vector<EvolutionTimeMeasurements> measurements1 = MlASLCS3UpdateAlgorithm.measurements1;
+		Vector<EvolutionTimeMeasurements> measurements0 = MLSLCSUpdateAlgorithm.measurements0;
+		Vector<EvolutionTimeMeasurements> measurements1 = MLSLCSUpdateAlgorithm.measurements1;
 		
 		
 		try {

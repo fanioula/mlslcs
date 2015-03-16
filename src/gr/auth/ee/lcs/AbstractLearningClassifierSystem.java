@@ -157,7 +157,7 @@ public abstract class AbstractLearningClassifierSystem {
 	
 	public int repetition;
 	
-	private final boolean thoroughlyCheckWIthPopulation = SettingsLoader.getStringSetting("thoroughlyCheckWIthPopulation", "true").equals("true");
+	private final boolean thoroughlyCheckWIthPopulation = SettingsLoader.getStringSetting("thoroughlyCheckWithPopulation", "true").equals("true");
 
 	
 //	/**

@@ -1,49 +1,29 @@
-/*
- *	Copyright (C) 2011 by F. Tzima and M. Allamanis
- *
- *	Permission is hereby granted, free of charge, to any person obtaining a copy
- *	of this software and associated documentation files (the "Software"), to deal
- *	in the Software without restriction, including without limitation the rights
- *	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- *	copies of the Software, and to permit persons to whom the Software is
- *	furnished to do so, subject to the following conditions:
- *
- *	The above copyright notice and this permission notice shall be included in
- *	all copies or substantial portions of the Software.
- *
- *	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- *	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- *	THE SOFTWARE.
- */
-/**
- * 
- */
 package gr.auth.ee.lcs.data.updateAlgorithms;
+
+import java.io.Serializable;
+import java.text.DecimalFormat;
+import java.util.Vector;
 
 import gr.auth.ee.lcs.AbstractLearningClassifierSystem;
 import gr.auth.ee.lcs.classifiers.Classifier;
 import gr.auth.ee.lcs.classifiers.ClassifierSet;
 import gr.auth.ee.lcs.classifiers.IPopulationControlStrategy;
 import gr.auth.ee.lcs.classifiers.Macroclassifier;
+import gr.auth.ee.lcs.classifiers.statistics.MeanFitnessStatistic;
 import gr.auth.ee.lcs.data.AbstractUpdateStrategy;
 import gr.auth.ee.lcs.geneticalgorithm.IGeneticAlgorithmStrategy;
 import gr.auth.ee.lcs.utilities.SettingsLoader;
 
-import java.io.Serializable;
-import java.text.DecimalFormat;
-import java.util.Vector;
-
-/**
- * An alternative MlASLCS update algorithm.
- * 
- * @author F. Tzima and M. Allamanis
- * 
- */
-public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
+public class MLSLCSUpdateAlgorithm extends AbstractUpdateStrategy  {
+	/**
+	 * The experience threshold for subsumption.
+	 */
+	protected int subsumptionExperienceThreshold;
+	
+	/**
+	 * The fitness threshold for subsumption.
+	 */
+	protected double subsumptionFitnessThreshold;
 	
 	public class EvolutionTimeMeasurements {
 		public long timeA;
@@ -57,7 +37,7 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 	
 	public static Vector<EvolutionTimeMeasurements> measurements1 = 
 		new Vector<EvolutionTimeMeasurements>();
-
+	
 	/**
 	 * A data object for the MlASLCS3 update algorithms.
 	 * 
@@ -80,7 +60,7 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 		/**
 		 * The classifier's fitness
 		 */
-		public double fitness = 1; //.5;
+		public double fitness = 1;//Double.MIN_NORMAL; //.5;
 
 		/**
 		 * niche set size estimation.
@@ -124,60 +104,42 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 	
 	
 	/**
-	 * The way to differentiate the choice of the fitness calculation formula.
+	 * The way to choose the fitness calculation formula.
 	 * 
-	 * Simple = (acc)^n
-	 * 
-	 * Complex = F + ��(k - F)
-	 * 
-	 * Sharing = F + ��((k*num)/(�� k*num) - F)
+	 * 0: Simple = (acc)^n
+	 * 1: Complex = F + beta * (num * (acc)^n - F)
+	 * 2: Sharing (see updateSet() and udpateSetNew() methods)
 	 * 
 	 * */
 	public static final int FITNESS_MODE_SIMPLE 	= 0;
 	public static final int FITNESS_MODE_COMPLEX 	= 1;
 	public static final int FITNESS_MODE_SHARING 	= 2;
-	
-	
-	public static final int DELETION_MODE_DEFAULT = 0;
-	public static final int DELETION_MODE_POWER = 1;
-	public static final int DELETION_MODE_MILTOS = 2;
-
-	
-	
-	public static double ACC_0 = SettingsLoader.getNumericSetting("ASLCS_Acc0", .99);
-	
-	public static double a = SettingsLoader.getNumericSetting("ASLCS_Alpha", .1);
-	
-
-	public static final int labelParallelMode = 1; 
-
-	/**
-	 * The deletion mechanism. 0 for (cl.myClassifier.experience > THETA_DEL) && (data.fitness < DELTA * meanPopulationFitness)
-	 * 						   1 for (cl.myClassifier.experience > THETA_DEL) && (Math.pow(data.fitness,n) < DELTA * meanPopulationFitness)	
-	 * 
-	 * 0 as default
-	 * */
-		
-	public final int DELETION_MODE = (int) SettingsLoader.getNumericSetting("DELETION_MODE", 0);
-
-	/**
-	 * The delta (��) parameter used in determining the formula of possibility of deletion
-	 */
-	
-	public static double DELTA = SettingsLoader.getNumericSetting("ASLCS_DELTA", .1);
-	
-	/**
-	 * The fitness mode, 0 for simple, 1 for complex. 0 As default.
-	 */
 	public final int FITNESS_MODE = (int) SettingsLoader.getNumericSetting("FITNESS_MODE", 0);
 	
+	/**
+	 * The way to choose the formula for computing core deletion probabilities.
+	 * 
+	 * 0: (cl.exp > THETA_DEL) && (cl.fitness < DELTA * meanPopulationFitness) ? cl.cs * (meanFitness / cl.fitness) : cl.cs
+	 * 1: (cl.exp > THETA_DEL) && (cl.fitness < DELTA * meanPopulationFitness) ? cl.cs * (meanFitness / Math.pow(cl.fitness,N)) : cl.cs
+	 * 2: (cl.exp < THETA_DEL) ? 1 / (cl.fitness * DELTA) : 1 / (cl.fitness * Math.exp(-cl.cs + 1))
+	 * 3: (cl.exp < THETA_DEL) ?  Math.exp(1 / cl.fitness) : Math.exp(cl.cs - 1) / cl.fitness
+	 * 
+	 **/
+	public static final int DELETION_MODE_DEFAULT = 0;
+	public static final int DELETION_MODE_POWER = 1;
+	public static final int DELETION_MODE_ICANNGA = 2;
+	public static final int DELETION_MODE_JOURNAL = 3;
+	public final int DELETION_MODE = (int) SettingsLoader.getNumericSetting("DELETION_MODE", 0);
 	
 	/**
-	 * The update mode, 0 for adding offsprings and controlling per offspring, 1 for adding all offsprings and controlling once. 0 As default.
+	 * The delta parameter used in determining the formula of possibility of deletion
 	 */
-	public final int UPDATE_MODE = (int) SettingsLoader.getNumericSetting("UPDATE_MODE", 0);
+	public static double DELTA = SettingsLoader.getNumericSetting("DELTA", .1);
+
+	public static double ACC_0 = SettingsLoader.getNumericSetting("Acc0", .99);
 	
-	
+	public static double a = SettingsLoader.getNumericSetting("Alpha", .1);
+			
 	/**
 	 * do classifiers that don't decide clearly for the label, participate in the correct sets?
 	 * */
@@ -197,30 +159,30 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 	/**
 	 * The learning rate.
 	 */
-	private final double LEARNING_RATE = SettingsLoader.getNumericSetting("LearningRate", 0.2);
+	private final double LEARNING_RATE = SettingsLoader.getNumericSetting("beta", 0.2);
 	
 	
 	/**
 	 * The theta_del parameter.
 	 */
-	public static int THETA_DEL = (int) SettingsLoader.getNumericSetting("ASLCS_THETA_DEL", 20);
+	public static int THETA_DEL = (int) SettingsLoader.getNumericSetting("THETA_DEL", 20);
 	
 	
 	/**
 	 * The MLUCS omega parameter.
 	 */	
-	private final double OMEGA = SettingsLoader.getNumericSetting("ASLCS_OMEGA", 0.9);
+	private final double OMEGA = SettingsLoader.getNumericSetting("OMEGA", 0.9);
 	
 	/**
 	 * The MLUCS phi parameter.
 	 */	
-	private final double PHI =  SettingsLoader.getNumericSetting("ASLCS_PHI", 1);
+	private final double PHI =  SettingsLoader.getNumericSetting("PHI", 1);
 
 
 	/**
 	 * The LCS instance being used.
 	 */
-	private final AbstractLearningClassifierSystem myLcs;
+	protected final AbstractLearningClassifierSystem myLcs;
 
 	/**
 	 * Genetic Algorithm.
@@ -228,137 +190,94 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 	public final IGeneticAlgorithmStrategy ga;
 
 	/**
-	 * The fitness threshold for subsumption.
-	 */
-	private final double subsumptionFitnessThreshold;
-
-	/**
-	 * The experience threshold for subsumption.
-	 */
-	private final int subsumptionExperienceThreshold;
-
-	/**
 	 * Number of labels used.
 	 */
-	private final int numberOfLabels;
+	protected final int numberOfLabels;
 
 	/**
 	 * The n dumping factor for acc.
 	 */
-	private final double n;
-	
-	
-	public int numberOfEvolutionsConducted;
-	
-	public int numberOfDeletionsConducted;
-	
-	public int numberOfSubsumptionsConducted;
-	
-	public int numberOfNewClassifiers;
-	
-	public long evolutionTime;
-	
-	public long subsumptionTime;
-	
-	public long deletionTime;
-	
-	public long generateCorrectSetTime;
-	
-	public long updateParametersTime;
-	
-	public long selectionTime;
-	
-	
-	/**
-	 * Constructor.
-	 * 
-	 * @param lcs
-	 *            the LCS being used.
-	 * @param labels
-	 *            the number of labels
-	 * @param geneticAlgorithm
-	 *            the GA used
-	 * @param nParameter
-	 *            the ASLCS dubbing factor
-	 * @param fitnessThreshold
-	 *            the subsumption fitness threshold to be used.
-	 * @param experienceThreshold
-	 *            the subsumption experience threshold to be used
-	 */
-	public MlASLCS3UpdateAlgorithm(final double nParameter,
-									final double fitnessThreshold, 
-									final int experienceThreshold,
-									IGeneticAlgorithmStrategy geneticAlgorithm, 
-									int labels,
-									AbstractLearningClassifierSystem lcs) {
+	protected final double n;
 		
+	
+//	private int numberOfEvolutionsConducted;
+//	
+//	private int numberOfDeletionsConducted;
+//	
+//	private int numberOfSubsumptionsConducted;
+//	
+//	private int numberOfNewClassifiers;
+//	
+//	private long evolutionTime;
+//	
+//	private long subsumptionTime;
+//	
+//	private long deletionTime;
+//	
+//	private long generateCorrectSetTime;
+//	
+//	private long updateParametersTime;
+//	
+//	private long selectionTime;
+	
+	private String algorithmName;
+	
+	
+	public MLSLCSUpdateAlgorithm(final double nParameter,
+			final double fitnessThreshold, final int experienceThreshold,
+			IGeneticAlgorithmStrategy geneticAlgorithm, int labels,
+			AbstractLearningClassifierSystem lcs) {
+
 		this.subsumptionFitnessThreshold = fitnessThreshold;
 		this.subsumptionExperienceThreshold = experienceThreshold;
+		this.algorithmName = getClass().getName();
 		myLcs = lcs;
 		numberOfLabels = labels;
 		n = nParameter;
 		ga = geneticAlgorithm;
-					
-		/*DELETION_MODE = (int) SettingsLoader.getNumericSetting("DELETION_MODE", 0);
-		FITNESS_MODE = (int) SettingsLoader.getNumericSetting("FITNESS_MODE", 0);
-		wildCardsParticipateInCorrectSets = SettingsLoader.getStringSetting("wildCardsParticipateInCorrectSets", "true").equals("true");*/
-		
+
 		System.out.println("Update algorithm states: ");
-		System.out.println("fitness mode: " + FITNESS_MODE);
-		System.out.println("deletion mode: " + DELETION_MODE);
-		System.out.println("update mode: " + UPDATE_MODE);
-		System.out.println("update algorithm: " + 3);
+		System.out.println("fitness mode: 	" + FITNESS_MODE);
+		System.out.println("deletion mode: 	" + DELETION_MODE);
+		System.out.println("update algorithm: " + algorithmName);
 		System.out.print("# => [C] " + wildCardsParticipateInCorrectSets);
-		if (wildCardsParticipateInCorrectSets) 
+		if (wildCardsParticipateInCorrectSets)
 			System.out.println(", balance [C]: " + balanceCorrectSets + "\n");
 		else
 			System.out.println("\n");
 
 	}
-
 	
-	
-	
-	private void computeCoreDeletionProbabilities (final Macroclassifier cl, 
+	/**
+	 * This method provides a centralized point for computing each classifier's deletion probability
+	 * because it is being called by two separate methods, computeDeletionProbabilities and computeDeletionProbabilitiesSmp
+	 * 
+	 * */
+	protected void computeCoreDeletionProbabilities (final Macroclassifier cl, 
 													final MlASLCSClassifierData data,
-													final double meanPopulationFitness) {
-		
+													final double meanFitness) {
 		
 		if (DELETION_MODE == DELETION_MODE_DEFAULT) {
-			data.d = data.ns * ((cl.myClassifier.experience > THETA_DEL) && (data.fitness < DELTA * meanPopulationFitness) ? 
-					meanPopulationFitness / data.fitness : 1);	
-		
-		/* mark the formula responsible for deleting this classifier 
-		 * (if exp > theta_del and fitness < delta * <f>) ==> formula = 1, else 0. */
-		
-			cl.myClassifier.formulaForD = ((cl.myClassifier.experience > THETA_DEL) 
-					&& (data.fitness < DELTA * meanPopulationFitness)) ? 1 : 0;
+			data.d = data.ns * ((cl.myClassifier.experience > THETA_DEL) && (data.fitness < DELTA * meanFitness) ? 
+					meanFitness / data.fitness : 1);	
 		}
-		
 		else if (DELETION_MODE == DELETION_MODE_POWER) {
-
-			data.d = data.ns * ((cl.myClassifier.experience > THETA_DEL) && (Math.pow(data.fitness,n) < DELTA * meanPopulationFitness) ? 
-						meanPopulationFitness / Math.pow(data.fitness,n) : 1);	
-			
-			/* mark the formula responsible for deleting this classifier 
-			 * (if exp > theta_del and fitness ^ n < delta * <f>) ==> formula = 1, else 0. */
-			
-			cl.myClassifier.formulaForD = ((cl.myClassifier.experience > THETA_DEL) 
-					&& (Math.pow(data.fitness,n) < DELTA * meanPopulationFitness)) ? 1 : 0;
+			data.d = data.ns * ((cl.myClassifier.experience > THETA_DEL) && (data.fitness < DELTA * meanFitness) ? 
+					meanFitness / Math.pow(data.fitness,n) : 1);	
 		}
-		
-		else if (DELETION_MODE == DELETION_MODE_MILTOS) {
-
-			// miltos original
-			data.d = 1 / (data.fitness * ((cl.myClassifier.experience < THETA_DEL) ? 100. : Math.exp(-data.ns  + 1)) );
-			
-			cl.myClassifier.formulaForD = (cl.myClassifier.experience < THETA_DEL) ? 1 : 0;
+		else if (DELETION_MODE == DELETION_MODE_ICANNGA) {
+			data.d = 1 / (data.fitness * ((cl.myClassifier.experience < THETA_DEL) ? DELTA : Math.exp(-data.ns  + 1)) );
 		}
-		
+		else if (DELETION_MODE == DELETION_MODE_JOURNAL) {
+			if (cl.myClassifier.experience < THETA_DEL) 
+				data.d = Math.exp(1 / data.fitness) ;
+			else 
+				data.d = Math.exp(data.ns - 1) / data.fitness;
+		}
 	}
 	
 	
-	
+
 	/**
 	 * 
 	 * For every classifier, compute its deletion probability.
@@ -371,34 +290,23 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 
 		
 		final int numOfMacroclassifiers = aSet.getNumberOfMacroclassifiers();
+				
+		MeanFitnessStatistic meanFit = new MeanFitnessStatistic(AbstractUpdateStrategy.COMPARISON_MODE_EXPLORATION);
+		double meanPopulationFitness = meanFit.getMetric(myLcs);
 		
-		// calculate the mean fitness of the population, used in the deletion mechanism
-		double fitnessSum = 0;
-		double meanPopulationFitness = 0;
-		
-		for (int j = 0; j < numOfMacroclassifiers; j++) {
-			fitnessSum += aSet.getClassifierNumerosity(j)
-					* aSet.getClassifier(j).getComparisonValue(COMPARISON_MODE_EXPLORATION); 
-		}
 
-		meanPopulationFitness = fitnessSum / aSet.getTotalNumerosity();
-
-		
 		/* update the d parameter, employed in the deletion mechanism, for each classifier in the match set, {currently population-wise} due to the change in 
 		 * the classifiers's numerosities, niches' sizes, fitnesses and the mean fitness of the population
 		 */
 		for (int i = 0; i < numOfMacroclassifiers; i++) {
-			//final Macroclassifier cl = matchSet.getMacroclassifier(i);
+			
 			final Macroclassifier cl = aSet.getMacroclassifier(i);
 			final MlASLCSClassifierData data = (MlASLCSClassifierData) cl.myClassifier.getUpdateDataObject();
-
+			
 			computeCoreDeletionProbabilities(cl, data, meanPopulationFitness);
 			
 		}	
 	}
-	
-	
-	
 	
 	/*
 	 * (non-Javadoc)
@@ -411,14 +319,14 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 	public void cover(ClassifierSet population, 
 					    int instanceIndex) {
 		
-		final Classifier coveringClassifier = myLcs
-											  .getClassifierTransformBridge()
+		final Classifier coveringClassifier = myLcs.getClassifierTransformBridge()
 											  .createRandomCoveringClassifier(myLcs.instances[instanceIndex]);
 		
-		coveringClassifier.created = myLcs.totalRepetition;//ga.getTimestamp();
+		coveringClassifier.created = myLcs.totalRepetition;
+		
 		coveringClassifier.cummulativeInstanceCreated = myLcs.getCummulativeCurrentInstanceIndex();
 		
-		coveringClassifier.setClassifierOrigin(Classifier.CLASSIFIER_ORIGIN_COVER); // o classifier proekupse apo cover
+		coveringClassifier.setClassifierOrigin(Classifier.CLASSIFIER_ORIGIN_COVER);
 		myLcs.numberOfCoversOccured ++ ;
 		population.addClassifier(new Macroclassifier(coveringClassifier, 1), false);
 	}
@@ -426,14 +334,14 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 	
 	private Macroclassifier coverNew( int instanceIndex ) {
 		
-		final Classifier coveringClassifier = myLcs
-											   .getClassifierTransformBridge()
-											   .createRandomCoveringClassifier(myLcs.instances[instanceIndex]);
-		
-		coveringClassifier.created = myLcs.totalRepetition;//ga.getTimestamp();
-		coveringClassifier.cummulativeInstanceCreated = myLcs.getCummulativeCurrentInstanceIndex();
+		final Classifier coveringClassifier = myLcs.getClassifierTransformBridge()
+		  									  .createRandomCoveringClassifier(myLcs.instances[instanceIndex]);
 
-		coveringClassifier.setClassifierOrigin(Classifier.CLASSIFIER_ORIGIN_COVER); // o classifier proekupse apo cover
+		coveringClassifier.created = myLcs.totalRepetition;//ga.getTimestamp();
+		
+		coveringClassifier.cummulativeInstanceCreated = myLcs.getCummulativeCurrentInstanceIndex();
+		
+		coveringClassifier.setClassifierOrigin(Classifier.CLASSIFIER_ORIGIN_COVER);
 		myLcs.numberOfCoversOccured ++ ;
 		return new Macroclassifier(coveringClassifier, 1);
 	}
@@ -527,8 +435,6 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 		else return correctSet;
 	}
 	
-	
-	
 
 	/*
 	 * (non-Javadoc)
@@ -539,19 +445,18 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 	 */
 	@Override
 	public double getComparisonValue(Classifier aClassifier, int mode) {
-		
+				
 		final MlASLCSClassifierData data = (MlASLCSClassifierData) aClassifier.getUpdateDataObject();
 		
 		switch (mode) {
 		case COMPARISON_MODE_EXPLORATION:
-			return ((aClassifier.experience < 10) ? 0 : data.fitness);
-			
+			return aClassifier.experience < THETA_DEL ? 0 : data.fitness;
 		case COMPARISON_MODE_DELETION:
 			return data.d;
 		
 		case COMPARISON_MODE_EXPLOITATION:
-			return (Double.isNaN(data.tp / data.msa) ? 0 : data.tp / data.msa);//(Double.isNaN(data.fitness) ? 0 : data.fitness);			
-		
+			return Double.isNaN(data.tp / data.msa) ? 0 : data.tp / data.msa;
+			
 		case COMPARISON_MODE_PURE_FITNESS:
 			return data.fitness;
 			
@@ -560,6 +465,7 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 		
 		case COMPARISON_MODE_ACCURACY:
 			return (aClassifier.objectiveCoverage < 0) ? 2.0 : data.tp / data.msa;
+
 		default:
 		}
 		return 0;
@@ -579,15 +485,13 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 		
         DecimalFormat df = new DecimalFormat("#.####");
 
-		return  /* " internalFitness: " + df.format(data.fitness) 
-				+ */" tp:|" + df.format(data.tp) + "|"
-				+ " msa:|" + df.format(data.msa) + "|"
-				+ " ns:|" + df.format(data.ns)  + "|"
-				+ " d:|" + df.format(data.d)  + "|"
-				/*+ " total fitness: " + df.format(data.totalFitness) 
-				+ " alt fitness: " + df.format(data.alternateFitness) */ ;
+		return  "tp:|" + df.format(data.tp)  + "|"
+				+ "msa:|" + df.format(data.msa)  + "|"
+				+ "ns:|" + df.format(data.ns) + "|";
+//				+ "d:|" + df.format(data.d) + "|";
 	}
 
+	
 	@Override
 	public double getNs (Classifier aClassifier) {
 		final MlASLCSClassifierData data = (MlASLCSClassifierData) aClassifier.getUpdateDataObject();
@@ -609,12 +513,6 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 		
 		final MlASLCSClassifierData childData = ((MlASLCSClassifierData) child.getUpdateDataObject());
 		
-/*		final MlASLCSClassifierData parentAData = ((MlASLCSClassifierData) parentA
-				.getUpdateDataObject());
-		final MlASLCSClassifierData parentBData = ((MlASLCSClassifierData) parentB
-				.getUpdateDataObject());
-		childData.ns = (parentAData.ns + parentBData.ns) / 2;
-*/
 		childData.ns = 1;
 		child.setComparisonValue(COMPARISON_MODE_EXPLORATION, 1);
 	}
@@ -647,6 +545,9 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 		data.fitness = comparisonValue;
 	}
 	
+	
+	
+	
 	/**
 	 * Share a the fitness among a set.
 	 * 
@@ -674,18 +575,18 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 
 		double relativeAccuracy = 0;
 		
-		for (int i = 0; i < matchSetSize; i++) { // gia ka9e macroclassifier
+		for (int i = 0; i < matchSetSize; i++) { 
 			
 			final Macroclassifier cl = matchSet.getMacroclassifier(i); 
 			final MlASLCSClassifierData dataArray[] = (MlASLCSClassifierData[]) cl.myClassifier.getUpdateDataArray();
 			final MlASLCSClassifierData data = (MlASLCSClassifierData) cl.myClassifier.getUpdateDataObject();
 
-			// Get classification ability for label l. an anikei sto labelCorrectSet me alla logia.
+			// Get classification ability for label l. 
 			final float classificationAbility = cl.myClassifier.classifyLabelCorrectly(instanceIndex, l);
 			final int labelNs = labelCorrectSet.getTotalNumerosity();
 			
 			// update true positives, msa and niche set size
-			if (classificationAbility == 0) {// an proekupse apo adiaforia
+			if (classificationAbility == 0) {
 
 				dataArray[l].tp += OMEGA;
 				dataArray[l].msa += PHI;
@@ -712,7 +613,7 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 					
 				
 			}
-			else if (classificationAbility > 0) { // an proekupse apo 9etiki apofasi 
+			else if (classificationAbility > 0) {
 				dataArray[l].minCurrentNs = Integer.MAX_VALUE;
 
 				dataArray[l].tp += 1;
@@ -746,12 +647,11 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 			final Macroclassifier cl = matchSet.getMacroclassifier(i); 
 			final MlASLCSClassifierData dataArray[] = (MlASLCSClassifierData[]) cl.myClassifier.getUpdateDataArray();
 			dataArray[l].fitness += LEARNING_RATE * (cl.numerosity * dataArray[l].k / relativeAccuracy - dataArray[l].fitness);
-			
-			//dataArray[l].fitness = Math.pow(dataArray[l].tp / dataArray[l].msa, n); //==> GOOD although too compact
 		}
 	}
 	
-
+	
+	
 	/*
 	 * (non-Javadoc)
 	 * 
@@ -767,15 +667,14 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 
 		// Create all label correct sets
 		final ClassifierSet[] labelCorrectSets = new ClassifierSet[numberOfLabels];
-
+			
+//		generateCorrectSetTime = -System.currentTimeMillis(); 
 		
-		generateCorrectSetTime = -System.currentTimeMillis(); 
-		
-		for (int i = 0; i < numberOfLabels; i++) {
-			labelCorrectSets[i] = generateLabelCorrectSet(matchSet, instanceIndex, i); 
+		for (int i = 0; i < numberOfLabels; i++) { 
+			labelCorrectSets[i] = generateLabelCorrectSet(matchSet, instanceIndex, i); 		
 		}		
 		
-		generateCorrectSetTime += System.currentTimeMillis();
+//		generateCorrectSetTime += System.currentTimeMillis();
 
 		
 		int CorrectSetsPopulation = 0;
@@ -784,17 +683,19 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 		}
 		
 		myLcs.meanCorrectSetNumerosity = CorrectSetsPopulation / numberOfLabels;
+
 		
 		final int matchSetSize = matchSet.getNumberOfMacroclassifiers();
 
-		updateParametersTime = -System.currentTimeMillis();
+//		updateParametersTime = -System.currentTimeMillis();
 		
 		if (FITNESS_MODE == FITNESS_MODE_SIMPLE || FITNESS_MODE == FITNESS_MODE_COMPLEX) {
 			// For each classifier in the matchset
 			for (int i = 0; i < matchSetSize; i++) { 
 
-				final Macroclassifier cl = matchSet.getMacroclassifier(i);
+				final Macroclassifier cl = matchSet.getMacroclassifier(i); 
 				
+
 				int minCurrentNs = Integer.MAX_VALUE;
 				final MlASLCSClassifierData data = (MlASLCSClassifierData) cl.myClassifier.getUpdateDataObject();
 	
@@ -833,11 +734,11 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 				switch (FITNESS_MODE) {
 				
 				case FITNESS_MODE_SIMPLE:
-					data.fitness = Math.pow((data.tp) / (data.msa), n);
+					data.fitness = Math.pow ((data.tp) / (data.msa), n);
 					break;
-					
+
 				case FITNESS_MODE_COMPLEX:
-					data.fitness += LEARNING_RATE * (Math.pow((data.tp) / (data.msa), n) - data.fitness);
+					data.fitness += LEARNING_RATE * (Math.pow((data.tp) / (data.msa), n) - data.fitness);				 
 					break;
 				}
 				updateSubsumption(cl.myClassifier);
@@ -873,7 +774,7 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 				}
 					
 				if (Math.pow(data.tp / data.msa, n) > ACC_0) {
-					if (cl.myClassifier.experience >= this.subsumptionExperienceThreshold)
+					if (cl.myClassifier.experience >= this.subsumptionExperienceThreshold && cl.myClassifier.timestamp > 0)
 						cl.myClassifier.setSubsumptionAbility(true);
 				}
 				else {
@@ -883,19 +784,19 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 			} 
 		}
 		
-		updateParametersTime += System.currentTimeMillis();
+//		updateParametersTime += System.currentTimeMillis();
 		
-		evolutionTime = 0;
+//		evolutionTime = 0;
 		
-		numberOfEvolutionsConducted = 0;
-		numberOfSubsumptionsConducted = 0;
-		numberOfDeletionsConducted = 0;
-		numberOfNewClassifiers = 0;
-		subsumptionTime = 0;
-		deletionTime = 0;
-			
+//		numberOfEvolutionsConducted = 0;
+//		numberOfSubsumptionsConducted = 0;
+//		numberOfDeletionsConducted = 0;
+//		numberOfNewClassifiers = 0;
+//		subsumptionTime = 0;
+//		deletionTime = 0;
+//			
 		if (evolve) {
-			evolutionTime = -System.currentTimeMillis();
+//			evolutionTime = -System.currentTimeMillis();
 
 			for (int l = 0; l < numberOfLabels; l++) {
 				if (labelCorrectSets[l].getNumberOfMacroclassifiers() > 0) {
@@ -903,22 +804,22 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 					ga.evolveSet(labelCorrectSets[l], population, l);
 					population.totalGAInvocations = ga.getTimestamp();
 					
-					numberOfEvolutionsConducted += ga.evolutionConducted();
-					numberOfSubsumptionsConducted += ga.getNumberOfSubsumptionsConducted();
-					numberOfNewClassifiers += ga.getNumberOfNewClassifiers();
-					subsumptionTime += ga.getSubsumptionTime();
-					deletionTime += ga.getDeletionTime();
-					numberOfDeletionsConducted += ga.getNumberOfDeletionsConducted();
+//					numberOfEvolutionsConducted += ga.evolutionConducted();
+//					numberOfSubsumptionsConducted += ga.getNumberOfSubsumptionsConducted();
+//					numberOfNewClassifiers += ga.getNumberOfNewClassifiers();
+//					subsumptionTime += ga.getSubsumptionTime();
+//					deletionTime += ga.getDeletionTime();
+//					numberOfDeletionsConducted += ga.getNumberOfDeletionsConducted();
 				} else {
 					
 					this.cover(population, instanceIndex);
-					numberOfNewClassifiers++;
-					IPopulationControlStrategy theControlStrategy = population.getPopulationControlStrategy();
-					numberOfDeletionsConducted += theControlStrategy.getNumberOfDeletionsConducted(); 
-					deletionTime += theControlStrategy.getDeletionTime();
+//					numberOfNewClassifiers++;
+//					IPopulationControlStrategy theControlStrategy = population.getPopulationControlStrategy();
+//					numberOfDeletionsConducted += theControlStrategy.getNumberOfDeletionsConducted(); 
+//					deletionTime += theControlStrategy.getDeletionTime();
 				}
 			}
-			evolutionTime += System.currentTimeMillis();
+//			evolutionTime += System.currentTimeMillis();
 		}
 	}	
 	
@@ -932,14 +833,13 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 		// Create all label correct sets
 		final ClassifierSet[] labelCorrectSets = new ClassifierSet[numberOfLabels];
 		
-		
-		generateCorrectSetTime = -System.currentTimeMillis();
+//		generateCorrectSetTime = -System.currentTimeMillis();
 
 		for (int i = 0; i < numberOfLabels; i++) { 
 			labelCorrectSets[i] = generateLabelCorrectSet(matchSet, instanceIndex, i); 
 		}
 		
-		generateCorrectSetTime += System.currentTimeMillis();
+//		generateCorrectSetTime += System.currentTimeMillis();
 
 		
 		int CorrectSetsPopulation = 0;
@@ -951,11 +851,11 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 		
 		final int matchSetSize = matchSet.getNumberOfMacroclassifiers();
 
-		updateParametersTime = -System.currentTimeMillis();
+//		updateParametersTime = -System.currentTimeMillis();
 		
 		if (FITNESS_MODE == FITNESS_MODE_SIMPLE || FITNESS_MODE == FITNESS_MODE_COMPLEX) {
 			// For each classifier in the matchset
-			for (int i = 0; i < matchSetSize; i++) {
+			for (int i = 0; i < matchSetSize; i++) { 
 				
 				final Macroclassifier cl = matchSet.getMacroclassifier(i); 
 				
@@ -977,7 +877,7 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 							}
 						}
 					}
-					else if (classificationAbility > 0) { 
+					else if (classificationAbility > 0) {
 						data.tp += 1;
 						
 						if (minCurrentNs > labelNs) { 
@@ -1001,7 +901,7 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 					data.fitness = Math.pow((data.tp) / (data.msa), n);
 					break;
 				case FITNESS_MODE_COMPLEX:
-					data.fitness += LEARNING_RATE * (Math.pow((data.tp) / (data.msa), n) - data.fitness);
+					data.fitness += LEARNING_RATE * (Math.pow((data.tp) / (data.msa), n) - data.fitness);					 
 					break;
 				}
 				updateSubsumption(cl.myClassifier);
@@ -1038,7 +938,7 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 				}
 					
 				if (Math.pow(data.tp / data.msa, n) > ACC_0) {
-					if (cl.myClassifier.experience >= this.subsumptionExperienceThreshold)
+					if (cl.myClassifier.experience >= this.subsumptionExperienceThreshold && cl.myClassifier.timestamp > 0)
 						cl.myClassifier.setSubsumptionAbility(true);
 				}
 				else {
@@ -1048,19 +948,19 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 			} 
 		}
 		
-		updateParametersTime += System.currentTimeMillis(); 
-		
-		numberOfEvolutionsConducted = 0;
-		numberOfSubsumptionsConducted = 0;
-		numberOfDeletionsConducted = 0;
-		numberOfNewClassifiers = 0;
-		evolutionTime = 0;
-		subsumptionTime = 0;
-		deletionTime = 0;
+//		updateParametersTime += System.currentTimeMillis(); 
+//		
+//		numberOfEvolutionsConducted = 0;
+//		numberOfSubsumptionsConducted = 0;
+//		numberOfDeletionsConducted = 0;
+//		numberOfNewClassifiers = 0;
+//		evolutionTime = 0;
+//		subsumptionTime = 0;
+//		deletionTime = 0;
 		
 		if (evolve) {
 			
-			evolutionTime = -System.currentTimeMillis();
+//			evolutionTime = -System.currentTimeMillis();
 						
 			Vector<Integer> labelsToEvolve = new Vector<Integer>();
 			Vector<Integer> labelsToCover = new Vector<Integer>();
@@ -1083,7 +983,7 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 				}
 			}
 			
-			numberOfEvolutionsConducted = labelsToEvolve.size();
+//			numberOfEvolutionsConducted = labelsToEvolve.size();
 			
 			Vector<Integer> indicesToSubsume = new Vector<Integer>();
 			
@@ -1091,11 +991,11 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 			
 			for ( int i = 0; i < labelsToEvolve.size(); i++ )
 			{
-				ga.evolveSetNew(labelCorrectSets[labelsToEvolve.elementAt(i)],population, labelsToEvolve.get(i));
+				ga.evolveSetNew(labelCorrectSets[labelsToEvolve.elementAt(i)], population, labelsToEvolve.get(i));
 				indicesToSubsume.addAll(ga.getIndicesToSubsume());
 				newClassifiersSet.merge(ga.getNewClassifiersSet());
 				
-				subsumptionTime += ga.getSubsumptionTime();				
+//				subsumptionTime += ga.getSubsumptionTime();				
 			}
 			
 			for ( int i = 0; i < labelsToCover.size(); i++ )
@@ -1106,8 +1006,8 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 			population.totalGAInvocations = ga.getTimestamp();
 
 			
-			numberOfSubsumptionsConducted = indicesToSubsume.size();
-			numberOfNewClassifiers        = newClassifiersSet.getNumberOfMacroclassifiers();
+//			numberOfSubsumptionsConducted = indicesToSubsume.size();
+//			numberOfNewClassifiers        = newClassifiersSet.getNumberOfMacroclassifiers();
 			
 			for ( int i = 0; i < indicesToSubsume.size() ; i++ )
 			{
@@ -1118,20 +1018,20 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 			
 			population.mergeWithoutControl(newClassifiersSet);
 			
-			deletionTime = -System.currentTimeMillis();
+//			deletionTime = -System.currentTimeMillis();
 			final IPopulationControlStrategy theControlStrategy = population.getPopulationControlStrategy();
 			theControlStrategy.controlPopulation(population);
-			deletionTime += System.currentTimeMillis();
+//			deletionTime += System.currentTimeMillis();
 			
-			numberOfDeletionsConducted = theControlStrategy.getNumberOfDeletionsConducted();
+//			numberOfDeletionsConducted = theControlStrategy.getNumberOfDeletionsConducted();
 			
-			evolutionTime += System.currentTimeMillis();
+//			evolutionTime += System.currentTimeMillis();
 			
 		}
 		
 	}
-
-
+	
+	
 	/**
 	 * Implementation of the subsumption strength.
 	 * 
@@ -1141,7 +1041,7 @@ public class MlASLCS3UpdateAlgorithm extends AbstractUpdateStrategy {
 	protected void updateSubsumption(final Classifier aClassifier) {
 		aClassifier.setSubsumptionAbility(
 				(aClassifier.getComparisonValue(COMPARISON_MODE_EXPLOITATION) > subsumptionFitnessThreshold)
-						&& (aClassifier.experience > subsumptionExperienceThreshold));
+						&& (aClassifier.experience > subsumptionExperienceThreshold) && (aClassifier.timestamp > 0));
 	}
 
 

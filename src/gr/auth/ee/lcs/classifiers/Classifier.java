@@ -170,9 +170,7 @@ public final class Classifier extends ExtendedBitSet implements Serializable {
 	 * then objectiveCoverage will be assigned its true, objective value of covered / checked.
 	 * */
 	public double objectiveCoverage = -1;
-	
-	public int formulaForD = -1;
-	
+		
 	public int unmatched;
 	
 	/**

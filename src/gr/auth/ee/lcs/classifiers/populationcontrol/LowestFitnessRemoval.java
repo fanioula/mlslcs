@@ -113,11 +113,6 @@ public class LowestFitnessRemoval implements IPopulationControlStrategy {
 			mySelector.select(1, aSet, toBeDeleted); 
 			Classifier cl = toBeDeleted.getClassifier(0);
 			
-				
-
-			if (cl.formulaForD == 0) aSet.secondDeletionFormula++;
-			else aSet.firstDeletionFormula++;
-			
 			if (cl.getClassifierOrigin() == Classifier.CLASSIFIER_ORIGIN_COVER || (cl.getClassifierOrigin() == Classifier.CLASSIFIER_ORIGIN_INIT))
 				aSet.coveredDeleted++;
 			else if (cl.getClassifierOrigin() == Classifier.CLASSIFIER_ORIGIN_GA)
