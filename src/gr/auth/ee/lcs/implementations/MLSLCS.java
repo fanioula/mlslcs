@@ -1,5 +1,5 @@
 /*
- *	Copyright (C) 2011 by F. Tzima and M. Allamanis
+ *	Copyright (C) 2011 by F. Tzima, M. Allamanis and A. Filotheou
  *
  *	Permission is hereby granted, free of charge, to any person obtaining a copy
  *	of this software and associated documentation files (the "Software"), to deal
@@ -31,8 +31,6 @@ import gr.auth.ee.lcs.data.ILCSMetric;
 import gr.auth.ee.lcs.data.representations.complex.GenericMultiLabelRepresentation;
 import gr.auth.ee.lcs.data.representations.complex.GenericMultiLabelRepresentation.VotingClassificationStrategy;
 import gr.auth.ee.lcs.data.updateAlgorithms.MLSLCSUpdateAlgorithm;
-import gr.auth.ee.lcs.data.updateAlgorithms.MLSLCSUpdateAlgorithm.EvolutionTimeMeasurements;
-import gr.auth.ee.lcs.data.updateAlgorithms.MlASLCS4UpdateAlgorithm;
 import gr.auth.ee.lcs.evaluators.AccuracyRecallEvaluator;
 import gr.auth.ee.lcs.evaluators.ExactMatchEvalutor;
 import gr.auth.ee.lcs.evaluators.HammingLossEvaluator;
@@ -48,14 +46,13 @@ import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Vector;
 
 import weka.core.Instances;
 
 /**
- * An alternative GMlASLCS implementation
+ * An implementation of the MLS-LCS algorithm
  * 
- * @author F. Tzima and M. Allamanis
+ * @author F. Tzima and M. Allamanis and A. Filotheou
  * 
  */
 public class MLSLCS extends AbstractLearningClassifierSystem {
@@ -137,11 +134,7 @@ public class MLSLCS extends AbstractLearningClassifierSystem {
 	
 	private final int GENETIC_ALGORITHM_SELECTION = (int) SettingsLoader.getNumericSetting("gaSelection", 0);
 	
-	private final int CROSSOVER_OPERATOR = (int) SettingsLoader.getNumericSetting("crossoverOperator", 0);
-
-	private final int UPDATE_ALGORITHM_VERSION = (int) SettingsLoader.getNumericSetting("updateAlgorithmVersion", 3);
-
-	
+	private final int CROSSOVER_OPERATOR = (int) SettingsLoader.getNumericSetting("crossoverOperator", 0);	
 
 
 	/**
@@ -154,14 +147,6 @@ public class MLSLCS extends AbstractLearningClassifierSystem {
 	 */
 	private final GenericMultiLabelRepresentation rep;
 
-	
-	/**
-	 * Output file for the time measurements.
-	 */
-	private String timeMeasurementsFile;
-	
-	private String systemAccuracyFile;
-	
 	private String deletionsFile;
 	
 	private String zeroCoverageFile;
@@ -227,29 +212,13 @@ public class MLSLCS extends AbstractLearningClassifierSystem {
 		
 		rep.setClassificationStrategy(rep.new BestFitnessClassificationStrategy());
 
-		
-		if (UPDATE_ALGORITHM_VERSION == 3) {
-			MLSLCSUpdateAlgorithm strategy = new MLSLCSUpdateAlgorithm(N, 
-																			 ACC0,
-																		     EXPERIENCE_THRESHOLD, 
-																			 ga,
-																			 numberOfLabels,
-																			 this);
-			this.setElements(rep, strategy);
-		
-		}
-	
-		else if (UPDATE_ALGORITHM_VERSION == 4) {
-			MlASLCS4UpdateAlgorithm strategy = new MlASLCS4UpdateAlgorithm(N, 
-																			 ACC0,
-																		     EXPERIENCE_THRESHOLD, 
-																			 ga,
-																			 numberOfLabels,
-																			 this);
-			this.setElements(rep, strategy);
-		
-		}
-		
+		MLSLCSUpdateAlgorithm strategy = new MLSLCSUpdateAlgorithm(N, 
+																		 ACC0,
+																	     EXPERIENCE_THRESHOLD, 
+																		 ga,
+																		 numberOfLabels,
+																		 this);
+		this.setElements(rep, strategy);
 
 		rulePopulation = new ClassifierSet(
 											new FixedSizeSetWorstFitnessDeletion(this,
@@ -494,42 +463,15 @@ public class MLSLCS extends AbstractLearningClassifierSystem {
 		
 		updatePopulation((int) (iterations * UPDATE_ONLY_ITERATION_PERCENTAGE), rulePopulation);
 		
-		timeMeasurementsFile = this.hookedMetricsFileDirectory + "/measurements.txt";
-		systemAccuracyFile = this.hookedMetricsFileDirectory + "/systemProgress.txt";
 		deletionsFile = this.hookedMetricsFileDirectory + "/deletions.txt";
-		zeroCoverageFile = this.hookedMetricsFileDirectory + "/zeroCoverage.txt";
-
-		
-		String etm0 = this.hookedMetricsFileDirectory + "/etm0.txt";
-		String etm1 = this.hookedMetricsFileDirectory + "/etm1.txt";
-				
-		Vector<EvolutionTimeMeasurements> measurements0 = MLSLCSUpdateAlgorithm.measurements0;
-		Vector<EvolutionTimeMeasurements> measurements1 = MLSLCSUpdateAlgorithm.measurements1;
-		
+		zeroCoverageFile = this.hookedMetricsFileDirectory + "/zeroCoverage.txt";	
 		
 		try {
-			final FileWriter fstream = new FileWriter(timeMeasurementsFile, false);
-			final FileWriter fstream2 = new FileWriter(systemAccuracyFile, false);
 			final FileWriter fstream3 = new FileWriter(deletionsFile, false);
 			final FileWriter fstream4 = new FileWriter(zeroCoverageFile, false);
 
-
-
-			
-			final BufferedWriter buffer = new BufferedWriter(fstream);
-			final BufferedWriter buffer2 = new BufferedWriter(fstream2);
 			final BufferedWriter buffer3 = new BufferedWriter(fstream3);
 			final BufferedWriter buffer4 = new BufferedWriter(fstream4);
-
-
-
-			buffer.write("");
-			buffer.flush();
-			buffer.close();
-			
-			buffer2.write("");
-			buffer2.flush();
-			buffer2.close();
 			
 			buffer3.write("");
 			buffer3.flush();
@@ -543,41 +485,7 @@ public class MLSLCS extends AbstractLearningClassifierSystem {
 			e.printStackTrace();
 		}
 		
-/*		try {
-			final FileWriter fstream = new FileWriter(timeMeasurementsFile, true);
-			final BufferedWriter buffer = new BufferedWriter(fstream);
-			for (int i = 0 ; i < timeMeasurements.length; i++ ){
-				for ( int j = 0 ; j < timeMeasurements[i].length ; j ++){
-					buffer.write( String.valueOf(timeMeasurements[i][j]) + "   ");
-				}
-				buffer.write(System.getProperty("line.separator"));
-			}
-			buffer.flush();
-			buffer.close();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-*/		
-		
-		try {
-			final FileWriter fstream = new FileWriter(hookedMetricsFileDirectory + "/systemProgress.txt", true);
-			final BufferedWriter buffer = new BufferedWriter(fstream);
-			for (int i = 0 ; i < systemAccuracyInTraining.size(); i++ ){
-				buffer.write(
-							+ systemAccuracyInTraining.elementAt(i)
-							+ "		"
-							+ systemAccuracyInTestingWithPcut.elementAt(i)
-							+ "		"
-							+ systemCoverage.elementAt(i)
-							+ System.getProperty("line.separator")
-						    );
-			}
-			buffer.flush();
-			buffer.close();
-		} 
-		catch (Exception e) {
-			e.printStackTrace();
-		}	
+
 		
 		try {
 			final FileWriter fstream = new FileWriter(hookedMetricsFileDirectory + "/deletions.txt", true);
@@ -628,62 +536,6 @@ public class MLSLCS extends AbstractLearningClassifierSystem {
 		} 
 		
 		catch (Exception e) {
-			e.printStackTrace();
-		}
-		
-		
-				
-		try {
-			final FileWriter fstream = new FileWriter(etm0, false);
-			final BufferedWriter buffer = new BufferedWriter(fstream);
-			buffer.write("");
-			buffer.flush();
-			buffer.close();
-		} 
-		catch (Exception e) {
-			e.printStackTrace();
-		}
-		
-		try {
-			final FileWriter fstream = new FileWriter(etm0, true);
-			final BufferedWriter buffer = new BufferedWriter(fstream);
-			for (int i = 0 ; i < measurements0.size(); i++ ){
-				buffer.write( String.valueOf(measurements0.elementAt(i).timeA) + "   ");
-				buffer.write( String.valueOf(measurements0.elementAt(i).timeB) + "   ");
-				buffer.write( String.valueOf(measurements0.elementAt(i).timeC) + "   ");
-				buffer.write( String.valueOf(measurements0.elementAt(i).timeD) + "   ");
-				buffer.write(System.getProperty("line.separator"));
-			}
-			buffer.flush();
-			buffer.close();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		
-		try {
-			final FileWriter fstream = new FileWriter(etm1, false);
-			final BufferedWriter buffer = new BufferedWriter(fstream);
-			buffer.write("");
-			buffer.flush();
-			buffer.close();
-		} 
-		catch (Exception e) {
-			e.printStackTrace();
-		}
-		
-		try {
-			final FileWriter fstream = new FileWriter(etm1, true);
-			final BufferedWriter buffer = new BufferedWriter(fstream);
-			for (int i = 0 ; i < measurements0.size(); i++ ){
-				buffer.write( String.valueOf(measurements1.elementAt(i).timeA) + "   ");
-				buffer.write( String.valueOf(measurements1.elementAt(i).timeB) + "   ");
-				buffer.write( String.valueOf(measurements1.elementAt(i).timeC) + "   ");
-				buffer.write( String.valueOf(measurements1.elementAt(i).timeD) + "   ");
-				buffer.write(System.getProperty("line.separator"));
-			}
-			buffer.flush();
-			buffer.close();
-		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		

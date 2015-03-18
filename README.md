@@ -1,82 +1,21 @@
-mlaslcs
-=======
+MLS-LCS: Multi-Label Supervised Learning Classifier System
+==========================================================
+In recent years, multi-label classification has attracted a significant body of research, motivated by real-life applications, such as text classification and medical diagnoses. Although sparsely studied in this context, Learning Classifier Systems are naturally well-suited to multi-label classification problems, whose search space typically involves multiple highly specific niches. 
+This is the motivation behind our work that introduces a generalized multi-label rule format – allowing for flexible label-dependency modeling, with no need for explicit knowledge of which correlations to search for – and uses it as a guide for further adapting the general Michigan-style supervised Learning Classifier System framework. 
+The integration of the aforementioned rule format and framework adaptations results in a novel algorithm for multi-label classification, namely the Multi-Label Supervised Learning Classifier System (MLS-LCS). MLS-LCS has been studied through a set of properly defined artificial problem and has also been thoroughly evaluated on a set of multi-label datasets, where it was found competitive to other state-of-the-art multi-label classification methods.
 
-The mlaslcs source code.
+The current implementation corresponds to the version of the MLS-LCS algorithm originally presented in:
+-- Allamanis, A., Tzima, F. A., & Mitkas, P. A. (2013). Effective Rule-Based Multi-label Classification with Learning Classifier Systems. In M. Tomassini, A. Antonioni, F. Daolio, and P. Buesser, editors, Adaptive and Natural Computing Algorithms, Lecture Notes in Computer Science, Volume 7824, pages 466–476, Springer Berlin Heidelberg, 2013. 
+and further improved in 
+-- Tzima, F.A., Allamanis, M., Filotheou, A., & Mitkas, P. A. (Under review). Inducing Generalized Multi-Label Rules with Learning Classifier Systems. Evolutionary Computation.
+
+USAGE
+=====
+Setup the desired system and experiment properties in the “defaultLcs.properties” file and run the command:
+	java -jar mlslcs.jar
+Check the output in the <outputDir> folder you specified during setup. 
 
 
-Regarding the defaultLcs.properties file, 
-there are several parameters to be considered about or altered.
-
-
-	filename: 
-		The (absolute) path to the .arff file that the LCS will be trained with.
-	
-	testFile (optional): 
-		Include a (absolute) path to the .arff file you want the LCS to be evaluated under.
-		use a # to comment the line if n-fold validation is desired.
-						 
-	numberOfLabels: 
-		The number of labels of the data set used to train the LCS. 
-	
-	numOfFoldRepetitions:
-		If the testFile line is commented, set numOfFoldRepetitions to X, 
-		where X is the number of times the LCS will be trained with each fold.
-		Default value is numOfFoldRepetitions = 3.
-		
-	trainIterations:
-		The number of times the LCS will be trained with each data set instance.
-		
-	callbackRate:
-		At every callbackRate iterations a function is called to store information about the progress 
-		of the training process.
-		
-	UpdateOnlyPercentage:
-		A (float) number. UpdateOnlyPercentage * trainIterations provides the number of iterations 
-		that the LCS is being trained after trainIterations iterations, with the genetic algorithm deactivated.
-		
-	populationSize:
-		The upper limit of the number of rules the LCS will hold.
-		
-	crossoverRate, mutationRate, thetaGA: 
-		GA-specific parameters. Usually only the thetaGA should be adjusted.
-		
-	AttributeGeneralizationRate:
-		The rate by which each instance attribute will be turned into a don't care (#)
-		in rules created by the covering component.
-	
-	LabelGeneralizationRate:
-		The rate by which each instance label will be turned into a don't care (#) 
-		in rules created by the covering component.
-		
-	ClusteringAttributeGeneralizationRate:
-		The rate by which each instance attribute will be turned into a don't care (#)
-		in rules created by the clustering component.
-		
-	ClusteringLabelGeneralizationRate:
-		The rate by which each instance label will be turned into a don't care (#) 
-		in rules created by the clustering component.
-		
-	precisionBits:
-		The number of bits used in the numerical attributes representation.
-		
-	LearningRate:
-		The learning rate used to calculate the niche size estimate.
-	
-	ASLCS_N:
-		fitness = (accuracy) ^ ASLCS_N
-		
-	ASLCS_THETA_DEL:
-		The experience threshold for deletion.
-	
-	ASLCS_OMEGA, ASLCS_PHI:
-		When a rule doesn't care about a label the accuracy of the rule is updated as follows:
-		accuracy = (true_positives + ASLCS_OMEGA) / (match_set_appearances + ASLCS_PHI)
-	
-	CLUSTER_GAMMA:
-		The γ parameter used in the clustering component.
-		
-	initializePopulation:
-		Boolean. Used to activate or deactivate the clustering component.
-		
+			
 	
 	

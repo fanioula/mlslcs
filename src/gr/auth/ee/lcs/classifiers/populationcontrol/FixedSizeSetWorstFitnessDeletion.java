@@ -75,7 +75,7 @@ public class FixedSizeSetWorstFitnessDeletion implements
 											 final IRuleSelector selector) {
 		
 		this.populationSize = maxPopulationSize;
-		mySelector = selector; // roulette wheel for GMlASLCS3
+		mySelector = selector; 
 		myLcs = lcs;
 		updateStrategy = lcs.getUpdateStrategy();
 	}

@@ -1,5 +1,5 @@
 /*
- *	Copyright (C) 2011 by F. Tzima and M. Allamanis
+ *	Copyright (C) 2011 by F. Tzima, M. Allamanis and A. Filotheou
  *
  *	Permission is hereby granted, free of charge, to any person obtaining a copy
  *	of this software and associated documentation files (the "Software"), to deal
@@ -137,7 +137,7 @@ public class SteadyStateGeneticAlgorithm implements IGeneticAlgorithmStrategy {
 	 * @param child
 	 * 			the child produced by the GA
 	 * 
-	 * @author alexandros filotheou
+	 * @author A. Filotheou
 	 */
 	public boolean letParentsSubsume (ClassifierSet population, 
 										Classifier parentA,

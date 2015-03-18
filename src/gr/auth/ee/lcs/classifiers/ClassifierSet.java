@@ -1,5 +1,5 @@
 /*
- *	Copyright (C) 2011 by F. Tzima and M. Allamanis
+ *	Copyright (C) 2011 by F. Tzima, M. Allamanis and A. Filotheou
  *
  *	Permission is hereby granted, free of charge, to any person obtaining a copy
  *	of this software and associated documentation files (the "Software"), to deal
@@ -359,7 +359,7 @@ public class ClassifierSet implements Serializable {
 	 * 
 	 * @param index
 	 * 
-	 * @author alexandros filotheou
+	 * @author A. Filotheou
 	 * 
 	 * */
 	
@@ -717,7 +717,7 @@ public class ClassifierSet implements Serializable {
 	/**
 	 * returns the myMacroclassifiers vector
 	 * 
-	 * @author alexandros filotheou
+	 * @author A. Filotheou
 	 * 
 	 */
 	public ArrayList<Macroclassifier> getMacroclassifiersVector() {
@@ -731,7 +731,7 @@ public class ClassifierSet implements Serializable {
 	 *            the index of the macroclassifier vector
 	 * @return the macroclassifier at a given index
 	 * 
-	 * @author alexandros filotheou
+	 * @author A. Filotheou
 	 */
 	
 	public Macroclassifier getActualMacroclassifier(final int index) {
@@ -745,7 +745,7 @@ public class ClassifierSet implements Serializable {
 	 *            the classifier whose corresponding Macroclassifier we wish to obtain
 	 * @return the macroclassifier
 	 * 
-	 * @author alexandros filotheou
+	 * @author A. Filotheou
 	 */
 		
 	

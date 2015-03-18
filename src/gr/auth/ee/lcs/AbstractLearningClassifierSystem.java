@@ -1,5 +1,5 @@
 /*
- *	Copyright (C) 2011 by F. Tzima and M. Allamanis
+ *	Copyright (C) 2011 by F. Tzima, M. Allamanis and A. Filotheou
  *
  *	Permission is hereby granted, free of charge, to any person obtaining a copy
  *	of this software and associated documentation files (the "Software"), to deal
@@ -39,8 +39,6 @@ import gr.auth.ee.lcs.classifiers.statistics.WeightedMeanLabelSpecificity;
 import gr.auth.ee.lcs.data.AbstractUpdateStrategy;
 import gr.auth.ee.lcs.data.ClassifierTransformBridge;
 import gr.auth.ee.lcs.data.ILCSMetric;
-import gr.auth.ee.lcs.data.representations.complex.GenericMultiLabelRepresentation;
-import gr.auth.ee.lcs.data.representations.complex.GenericMultiLabelRepresentation.VotingClassificationStrategy;
 import gr.auth.ee.lcs.evaluators.AccuracyRecallEvaluator;
 import gr.auth.ee.lcs.evaluators.ExactMatchEvalutor;
 import gr.auth.ee.lcs.evaluators.FileLogger;
@@ -100,7 +98,7 @@ public abstract class AbstractLearningClassifierSystem {
 	 * */
 	private int cummulativeCurrentInstanceIndex = 0;
 	
-
+	private int storeRulePopulationSteps = -1;
 
 	/**
 	 * The train set.
@@ -177,11 +175,6 @@ public abstract class AbstractLearningClassifierSystem {
 	
 	public Vector<Integer> iteration = new Vector<Integer>();
 	public Vector<Integer> originOfDeleted = new Vector<Integer>();
-
-	public Vector<Float> 	systemAccuracyInTraining = new Vector<Float>();
-	public Vector<Float> 	systemAccuracyInTestingWithPcut = new Vector<Float>();
-	public Vector<Float> 	systemCoverage = new Vector<Float>();
-
 	
 	public int numberOfClassifiersDeletedInMatchSets;
 	
@@ -341,7 +334,7 @@ public abstract class AbstractLearningClassifierSystem {
 		
 		System.out.println("\n");
 		
-		// rules for vallim4
+		// rules for toy6x4
 		String[] BAMRules1V = {
 				"00#### => 11##",
 				"01#### => 10##",
@@ -377,11 +370,11 @@ public abstract class AbstractLearningClassifierSystem {
 		};
 		
 		String trainFileName = SettingsLoader.getStringSetting("filename", "");
-		if (trainFileName.contains("vallim4") || trainFileName.contains("mlposition4"))
+		if (trainFileName.contains("toy6x4") || trainFileName.contains("mlposition4"))
 		{
-			String[] BAMrules1 = trainFileName.contains("vallim4") ? BAMRules1V : BAMRules1P;
-			String[] BAMrules2a = trainFileName.contains("vallim4") ? BAMRules2aV : BAMRules2aP;
-			String[] BAMrules2b = trainFileName.contains("vallim4") ? BAMRules2bV : BAMRules2bP;
+			String[] BAMrules1 = trainFileName.contains("toy6x4") ? BAMRules1V : BAMRules1P;
+			String[] BAMrules2a = trainFileName.contains("toy6x4") ? BAMRules2aV : BAMRules2aP;
+			String[] BAMrules2b = trainFileName.contains("toy6x4") ? BAMRules2bV : BAMRules2bP;
 	
 			double temp1 = ClassifierSet.percentageOfBAMDiscovered(rulePopulation, BAMrules1);		
 			double temp2a = ClassifierSet.percentageOfBAMDiscovered(rulePopulation, BAMrules2a);		
@@ -403,10 +396,12 @@ public abstract class AbstractLearningClassifierSystem {
 			}	
 		}
 		 
-		
+		if (storeRulePopulationSteps<0)
+			storeRulePopulationSteps = (int) SettingsLoader.getNumericSetting("storeRulePopulationSteps", 100);
+			
 		meanNs /= this.getRulePopulation().getNumberOfMacroclassifiers();
 		
-		if (repetition % 100 == 0 || repetitionF >= (int)(iterations*(1+SettingsLoader.getNumericSetting("UpdateOnlyPercentage", .1))))
+		if (repetition % storeRulePopulationSteps == 0 || repetitionF >= (int)(iterations*(1+SettingsLoader.getNumericSetting("UpdateOnlyPercentage", .1))))
 			try {
 	
 				// record the rule population and its metrics in population.txt
@@ -512,33 +507,6 @@ public abstract class AbstractLearningClassifierSystem {
 	 */
 	public final AbstractUpdateStrategy getUpdateStrategy() {
 		return updateStrategy;
-	}
-
-	
-	/**
-	 * collect the system's multilabel accuracy per iteration, plus every classifier's accuracy per iteration(TODO)
-	 * */
-	public void harvestAccuracies(int iteration){
-		
-		final AccuracyRecallEvaluator trainingAccuracy = new AccuracyRecallEvaluator(trainSet, false, this, AccuracyRecallEvaluator.TYPE_ACCURACY);
-
-		final VotingClassificationStrategy str = ((GenericMultiLabelRepresentation) transformBridge).new VotingClassificationStrategy();
-		((GenericMultiLabelRepresentation) transformBridge).setClassificationStrategy(str);
-		str.proportionalCutCalibration(this.instances, rulePopulation);
-		
-		final AccuracyRecallEvaluator testingAccuracyWithPcut  = new AccuracyRecallEvaluator(testSet, false, this, AccuracyRecallEvaluator.TYPE_ACCURACY);
-		
-
-		final MeanCoverageStatistic coverage = new MeanCoverageStatistic();
-
-		double trainAcc = trainingAccuracy.getMetric(this);
-		double testAccPcut = testingAccuracyWithPcut.getMetric(this);
-		double cov = coverage.getMetric(this);
-
-		systemAccuracyInTraining.add((float) trainAcc);
-		systemAccuracyInTestingWithPcut.add((float) testAccPcut);
-		systemCoverage.add((float) cov);	
-		
 	}
 	
 	
@@ -887,7 +855,7 @@ public abstract class AbstractLearningClassifierSystem {
 	 *@param instances
 	 *			the set of instances on which we will evaluate on. (train or test)
 	 *
-	 * @author alexandros filotheou
+	 * @author A. Filotheou
 	 * 
 	 * 
 	 * */

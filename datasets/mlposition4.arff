@@ -1,4 +1,4 @@
-@relation 'position4'
+@relation 'mlposition4'
 @attribute attr0 {0,1}
 @attribute attr1 {0,1}
 @attribute attr2 {0,1}

@@ -119,10 +119,13 @@ public class ArffTrainTestLoader {
 
 		}
 
-		final String rulesSaveFile = SettingsLoader.getStringSetting("saveRulesFile", "");
+//		final String outputDir = SettingsLoader.getStringSetting("outputDir", "output");
+		String rulesSaveFile = SettingsLoader.getStringSetting("saveRulesFile", "");
+//		if (!outputDir.equals("") && !rulesSaveFile.equals(""))
+//			rulesSaveFile  = outputDir + "/" + rulesSaveFile;
 
 		if (!rulesSaveFile.isEmpty())
-			ClassifierSet.saveClassifierSet(myLcs.rulePopulation, rulesSaveFile);
+			ClassifierSet.saveClassifierSet(myLcs.rulePopulation, myLcs.hookedMetricsFileDirectory + "/" + rulesSaveFile);
 		
 		
 		System.out.println("\n");

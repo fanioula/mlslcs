@@ -551,7 +551,8 @@ public class FoldEvaluator {
 		// print results
 		final String[] names = prototype.getEvaluationNames();
 		printEvaluations(means, names);
-		storeFinalEvaluations(means, names, "hookedMetrics/finals.txt");
+		String outputDir = SettingsLoader.getStringSetting("outputDir", "output");
+		storeFinalEvaluations(means, names, outputDir + "/finals.txt");
 		
 
 	}
@@ -619,7 +620,7 @@ public class FoldEvaluator {
 		}  
 	}
 	
-	//write final results in hookedMetrics/finals.txt
+	//write final results in outputDir/finals.txt
 	public static void storeFinalEvaluations (double[] means, String[] names, String path) {
 
 		for (int i = 0; i < means.length; i++) {

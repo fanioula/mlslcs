@@ -1,5 +1,5 @@
 /*
- *	Copyright (C) 2011 by F. Tzima and M. Allamanis
+ *	Copyright (C) 2011 by F. Tzima, M. Allamanis and A. Filotheou
  *
  *	Permission is hereby granted, free of charge, to any person obtaining a copy
  *	of this software and associated documentation files (the "Software"), to deal
@@ -54,7 +54,7 @@ public class FileLogger implements ILCSMetric {
 	/**
 	 * The directory that the metric files will be stored.
 	 * 
-	 * @author alexandros filotheou
+	 * @author A. Filotheou
 	 * 
 	 * */
 	
@@ -72,7 +72,7 @@ public class FileLogger implements ILCSMetric {
 	 * and copy a backup of the src directory for debugging purposes
 	 * 
 	 * 
-	 * @author alexandros filotheou
+	 * @author A. Filotheou
 	 * 
 	 * */
 	public FileLogger(final AbstractLearningClassifierSystem lcs, int foldNumber) {
@@ -85,8 +85,10 @@ public class FileLogger implements ILCSMetric {
 		
 		String timestamp = sdf.format(cal.getTime());
 		
-		// make directory hookedMetrics/{simpleDateFormat}
-		String dirName = "hookedMetrics/" + timestamp;
+		String outputDir = SettingsLoader.getStringSetting("outputDir", "output");
+		
+		// make directory outputDir/{simpleDateFormat}
+		String dirName = outputDir + "/" + timestamp;
 		if (foldNumber>=0)		
 			dirName += "_fold" + foldNumber;
 		File dir = new File(dirName); 
@@ -142,38 +144,7 @@ public class FileLogger implements ILCSMetric {
 //			e.printStackTrace();
 //		}
 		
-		try {
-			// record fitness mode, deletion mode and whether # participate in the correct sets in the file essentialSettings.txt
-			final FileWriter fstream = new FileWriter(storeDirectory + "/essentialSettings.txt", true);
-			final BufferedWriter buffer = new BufferedWriter(fstream);
-			
-			int fitness_mode = (int) SettingsLoader.getNumericSetting("FITNESS_MODE", 0);
-			int deletion_mode = (int) SettingsLoader.getNumericSetting("DELETION_MODE", 0);
-			boolean wildCardsParticipateInCorrectSets = String.valueOf(SettingsLoader.getStringSetting("wildCardsParticipateInCorrectSets", "true")).equals("true");
-			boolean initializePopulation = String.valueOf(SettingsLoader.getStringSetting("initializePopulation", "true")).equals("true");
-
-			buffer.write(					
-					  "fitness mode: " + fitness_mode
-					+ System.getProperty("line.separator")
-					+ "deletion mode:  " + deletion_mode
-					+ System.getProperty("line.separator")
-					+ "# in correct sets :" + wildCardsParticipateInCorrectSets 
-					+ System.getProperty("line.separator")
-					+ (wildCardsParticipateInCorrectSets ? 
-					 "balance correct sets: " + String.valueOf(SettingsLoader.getStringSetting("balanceCorrectSets", "true").equals("true"))
-					+ (String.valueOf(SettingsLoader.getStringSetting("balanceCorrectSets", "true").equals("true") 
-							? ", with ratio: " +  SettingsLoader.getNumericSetting("wildCardParticipationRatio", 0)
-							: "")) : ""
-					+ System.getProperty("line.separator")
-					+ (initializePopulation ? "population initialized via clustering: " + initializePopulation : "")
-					+ System.getProperty("line.separator"))
-			);
-			buffer.flush();
-			buffer.close();
-		} 
-		catch (Exception e) {
-			e.printStackTrace();
-		}	
+		
 		
 		
 	}

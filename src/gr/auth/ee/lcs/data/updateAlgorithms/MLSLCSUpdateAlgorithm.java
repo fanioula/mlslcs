@@ -1,7 +1,29 @@
+/*
+ *	Copyright (C) 2011 by F. Tzima, M. Allamanis and A. Filotheou
+ *
+ *	Permission is hereby granted, free of charge, to any person obtaining a copy
+ *	of this software and associated documentation files (the "Software"), to deal
+ *	in the Software without restriction, including without limitation the rights
+ *	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *	copies of the Software, and to permit persons to whom the Software is
+ *	furnished to do so, subject to the following conditions:
+ *
+ *	The above copyright notice and this permission notice shall be included in
+ *	all copies or substantial portions of the Software.
+ *
+ *	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ *	THE SOFTWARE.
+ */
 package gr.auth.ee.lcs.data.updateAlgorithms;
 
 import java.io.Serializable;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.Vector;
 
 import gr.auth.ee.lcs.AbstractLearningClassifierSystem;
@@ -25,26 +47,11 @@ public class MLSLCSUpdateAlgorithm extends AbstractUpdateStrategy  {
 	 */
 	protected double subsumptionFitnessThreshold;
 	
-	public class EvolutionTimeMeasurements {
-		public long timeA;
-		public long timeB;
-		public long timeC;
-		public long timeD;
-	}
-	
-	public static Vector<EvolutionTimeMeasurements> measurements0 = 
-		new Vector<EvolutionTimeMeasurements>();
-	
-	public static Vector<EvolutionTimeMeasurements> measurements1 = 
-		new Vector<EvolutionTimeMeasurements>();
-	
 	/**
-	 * A data object for the MlASLCS3 update algorithms.
-	 * 
-	 * @author F. Tzima and M. Allamanis
+	 * A data object for the MLSLCS update algorithms.
 	 * 
 	 */
-	final static class MlASLCSClassifierData implements Serializable {
+	final static class MLSLCSClassifierData implements Serializable {
 
 		/**
 		 * 
@@ -198,6 +205,13 @@ public class MLSLCSUpdateAlgorithm extends AbstractUpdateStrategy  {
 	 * The n dumping factor for acc.
 	 */
 	protected final double n;
+	
+	/**
+	 *  holds the classifiers' indices in the match set with the lowest coverage. used when deleting from [M]
+	 * */
+	private ArrayList <Integer> lowestCoverageIndices;
+	
+	private boolean commencedDeletions = false;
 		
 	
 //	private int numberOfEvolutionsConducted;
@@ -235,6 +249,8 @@ public class MLSLCSUpdateAlgorithm extends AbstractUpdateStrategy  {
 		numberOfLabels = labels;
 		n = nParameter;
 		ga = geneticAlgorithm;
+		
+		lowestCoverageIndices = new ArrayList <Integer>();
 
 		System.out.println("Update algorithm states: ");
 		System.out.println("fitness mode: 	" + FITNESS_MODE);
@@ -254,9 +270,10 @@ public class MLSLCSUpdateAlgorithm extends AbstractUpdateStrategy  {
 	 * 
 	 * */
 	protected void computeCoreDeletionProbabilities (final Macroclassifier cl, 
-													final MlASLCSClassifierData data,
+													final MLSLCSClassifierData data,
 													final double meanFitness) {
 		
+		commencedDeletions = true;
 		if (DELETION_MODE == DELETION_MODE_DEFAULT) {
 			data.d = data.ns * ((cl.myClassifier.experience > THETA_DEL) && (data.fitness < DELTA * meanFitness) ? 
 					meanFitness / data.fitness : 1);	
@@ -301,7 +318,7 @@ public class MLSLCSUpdateAlgorithm extends AbstractUpdateStrategy  {
 		for (int i = 0; i < numOfMacroclassifiers; i++) {
 			
 			final Macroclassifier cl = aSet.getMacroclassifier(i);
-			final MlASLCSClassifierData data = (MlASLCSClassifierData) cl.myClassifier.getUpdateDataObject();
+			final MLSLCSClassifierData data = (MLSLCSClassifierData) cl.myClassifier.getUpdateDataObject();
 			
 			computeCoreDeletionProbabilities(cl, data, meanPopulationFitness);
 			
@@ -356,7 +373,7 @@ public class MLSLCSUpdateAlgorithm extends AbstractUpdateStrategy  {
 	@Override				
 
 	public Serializable createStateClassifierObject() {
-		return new MlASLCSClassifierData();
+		return new MLSLCSClassifierData();
 	}
 	
 	/*
@@ -368,9 +385,9 @@ public class MLSLCSUpdateAlgorithm extends AbstractUpdateStrategy  {
 	@Override	
 	public Serializable[] createClassifierObjectArray() {
 		
-		MlASLCSClassifierData classifierObjectArray[] = new MlASLCSClassifierData[(int) SettingsLoader.getNumericSetting("numberOfLabels", 1)];
+		MLSLCSClassifierData classifierObjectArray[] = new MLSLCSClassifierData[(int) SettingsLoader.getNumericSetting("numberOfLabels", 1)];
 		for (int i = 0; i < numberOfLabels; i++) {
-			classifierObjectArray[i] = new MlASLCSClassifierData();
+			classifierObjectArray[i] = new MLSLCSClassifierData();
 		}
 		return classifierObjectArray;
 	}
@@ -446,7 +463,7 @@ public class MLSLCSUpdateAlgorithm extends AbstractUpdateStrategy  {
 	@Override
 	public double getComparisonValue(Classifier aClassifier, int mode) {
 				
-		final MlASLCSClassifierData data = (MlASLCSClassifierData) aClassifier.getUpdateDataObject();
+		final MLSLCSClassifierData data = (MLSLCSClassifierData) aClassifier.getUpdateDataObject();
 		
 		switch (mode) {
 		case COMPARISON_MODE_EXPLORATION:
@@ -481,7 +498,7 @@ public class MLSLCSUpdateAlgorithm extends AbstractUpdateStrategy  {
 	@Override
 	public String getData(Classifier aClassifier) {
 		
-		final MlASLCSClassifierData data = ((MlASLCSClassifierData) aClassifier.getUpdateDataObject());
+		final MLSLCSClassifierData data = ((MLSLCSClassifierData) aClassifier.getUpdateDataObject());
 		
         DecimalFormat df = new DecimalFormat("#.####");
 
@@ -494,13 +511,13 @@ public class MLSLCSUpdateAlgorithm extends AbstractUpdateStrategy  {
 	
 	@Override
 	public double getNs (Classifier aClassifier) {
-		final MlASLCSClassifierData data = (MlASLCSClassifierData) aClassifier.getUpdateDataObject();
+		final MLSLCSClassifierData data = (MLSLCSClassifierData) aClassifier.getUpdateDataObject();
 		return data.ns;
 	}
 	
 	@Override
 	public double getAccuracy (Classifier aClassifier) {
-		final MlASLCSClassifierData data = (MlASLCSClassifierData) aClassifier.getUpdateDataObject();
+		final MLSLCSClassifierData data = (MLSLCSClassifierData) aClassifier.getUpdateDataObject();
 		return (Double.isNaN(data.tp / data.msa) ? 0.0 : data.tp / data.msa);
 	}
 	
@@ -511,7 +528,7 @@ public class MLSLCSUpdateAlgorithm extends AbstractUpdateStrategy  {
 										 Classifier parentB,
 										 Classifier child) {
 		
-		final MlASLCSClassifierData childData = ((MlASLCSClassifierData) child.getUpdateDataObject());
+		final MLSLCSClassifierData childData = ((MLSLCSClassifierData) child.getUpdateDataObject());
 		
 		childData.ns = 1;
 		child.setComparisonValue(COMPARISON_MODE_EXPLORATION, 1);
@@ -541,7 +558,7 @@ public class MLSLCSUpdateAlgorithm extends AbstractUpdateStrategy  {
 									int mode,
 									double comparisonValue) {
 		
-		final MlASLCSClassifierData data = ((MlASLCSClassifierData) aClassifier.getUpdateDataObject());
+		final MLSLCSClassifierData data = ((MLSLCSClassifierData) aClassifier.getUpdateDataObject());
 		data.fitness = comparisonValue;
 	}
 	
@@ -563,7 +580,7 @@ public class MLSLCSUpdateAlgorithm extends AbstractUpdateStrategy  {
 	 * @param instanceIndex
 	 * 			the index of the instance           
 	 * 
-	 * @author alexandros philotheou
+	 * @author A. Filotheou
 	 * 
 	 */
 	private void shareFitness(final ClassifierSet matchSet, 
@@ -578,8 +595,8 @@ public class MLSLCSUpdateAlgorithm extends AbstractUpdateStrategy  {
 		for (int i = 0; i < matchSetSize; i++) { 
 			
 			final Macroclassifier cl = matchSet.getMacroclassifier(i); 
-			final MlASLCSClassifierData dataArray[] = (MlASLCSClassifierData[]) cl.myClassifier.getUpdateDataArray();
-			final MlASLCSClassifierData data = (MlASLCSClassifierData) cl.myClassifier.getUpdateDataObject();
+			final MLSLCSClassifierData dataArray[] = (MLSLCSClassifierData[]) cl.myClassifier.getUpdateDataArray();
+			final MLSLCSClassifierData data = (MLSLCSClassifierData) cl.myClassifier.getUpdateDataObject();
 
 			// Get classification ability for label l. 
 			final float classificationAbility = cl.myClassifier.classifyLabelCorrectly(instanceIndex, l);
@@ -645,7 +662,7 @@ public class MLSLCSUpdateAlgorithm extends AbstractUpdateStrategy  {
 
 		for (int i = 0; i < matchSetSize; i++) {
 			final Macroclassifier cl = matchSet.getMacroclassifier(i); 
-			final MlASLCSClassifierData dataArray[] = (MlASLCSClassifierData[]) cl.myClassifier.getUpdateDataArray();
+			final MLSLCSClassifierData dataArray[] = (MLSLCSClassifierData[]) cl.myClassifier.getUpdateDataArray();
 			dataArray[l].fitness += LEARNING_RATE * (cl.numerosity * dataArray[l].k / relativeAccuracy - dataArray[l].fitness);
 		}
 	}
@@ -664,6 +681,9 @@ public class MLSLCSUpdateAlgorithm extends AbstractUpdateStrategy  {
 						   ClassifierSet matchSet,
 						   int instanceIndex, 
 						   boolean evolve) {
+		
+		if(commencedDeletions && SettingsLoader.getStringSetting("matchSetPopulationControl", "false").equals("true"))
+			controlPopulationInMatchSet(population, matchSet);
 
 		// Create all label correct sets
 		final ClassifierSet[] labelCorrectSets = new ClassifierSet[numberOfLabels];
@@ -697,7 +717,7 @@ public class MLSLCSUpdateAlgorithm extends AbstractUpdateStrategy  {
 				
 
 				int minCurrentNs = Integer.MAX_VALUE;
-				final MlASLCSClassifierData data = (MlASLCSClassifierData) cl.myClassifier.getUpdateDataObject();
+				final MLSLCSClassifierData data = (MLSLCSClassifierData) cl.myClassifier.getUpdateDataObject();
 	
 				for (int l = 0; l < numberOfLabels; l++) {
 					// Get classification ability for label l.
@@ -756,8 +776,8 @@ public class MLSLCSUpdateAlgorithm extends AbstractUpdateStrategy  {
 			for (int i = 0; i < matchSetSize; i++) { 
 				final Macroclassifier cl = matchSet.getMacroclassifier(i);	
 				cl.myClassifier.experience++; 
-				final MlASLCSClassifierData data = (MlASLCSClassifierData) cl.myClassifier.getUpdateDataObject();
-				final MlASLCSClassifierData dataArray[] = (MlASLCSClassifierData[]) cl.myClassifier.getUpdateDataArray();
+				final MLSLCSClassifierData data = (MLSLCSClassifierData) cl.myClassifier.getUpdateDataObject();
+				final MLSLCSClassifierData dataArray[] = (MLSLCSClassifierData[]) cl.myClassifier.getUpdateDataArray();
 				
 				double fitnessSum = 0;
 				double ns = 0;
@@ -830,6 +850,16 @@ public class MLSLCSUpdateAlgorithm extends AbstractUpdateStrategy  {
 							   int instanceIndex, 
 							   boolean evolve) {
 		
+		/*
+		 * If "&& evolve" is enabled in the condition below,
+		 * rules will be deleted from match sets only during the
+		 * training period (iterations), not during the update period that follows it.
+		 * */
+		
+		if (commencedDeletions && SettingsLoader.getStringSetting("matchSetPopulationControl", "false").equals("true") /* && evolve */) {
+				controlPopulationInMatchSet(population, matchSet);
+		}
+		
 		// Create all label correct sets
 		final ClassifierSet[] labelCorrectSets = new ClassifierSet[numberOfLabels];
 		
@@ -860,7 +890,7 @@ public class MLSLCSUpdateAlgorithm extends AbstractUpdateStrategy  {
 				final Macroclassifier cl = matchSet.getMacroclassifier(i); 
 				
 				int minCurrentNs = Integer.MAX_VALUE;
-				final MlASLCSClassifierData data = (MlASLCSClassifierData) cl.myClassifier.getUpdateDataObject();
+				final MLSLCSClassifierData data = (MLSLCSClassifierData) cl.myClassifier.getUpdateDataObject();
 	
 				for (int l = 0; l < numberOfLabels; l++) {
 					// Get classification ability for label l. 
@@ -920,8 +950,8 @@ public class MLSLCSUpdateAlgorithm extends AbstractUpdateStrategy  {
 			for (int i = 0; i < matchSetSize; i++) { 
 				final Macroclassifier cl = matchSet.getMacroclassifier(i);	
 				cl.myClassifier.experience++; 
-				final MlASLCSClassifierData data = (MlASLCSClassifierData) cl.myClassifier.getUpdateDataObject();
-				final MlASLCSClassifierData dataArray[] = (MlASLCSClassifierData[]) cl.myClassifier.getUpdateDataArray();
+				final MLSLCSClassifierData data = (MLSLCSClassifierData) cl.myClassifier.getUpdateDataObject();
+				final MLSLCSClassifierData dataArray[] = (MLSLCSClassifierData[]) cl.myClassifier.getUpdateDataArray();
 				
 				double fitnessSum = 0;
 				double ns = 0;
@@ -1043,6 +1073,55 @@ public class MLSLCSUpdateAlgorithm extends AbstractUpdateStrategy  {
 				(aClassifier.getComparisonValue(COMPARISON_MODE_EXPLOITATION) > subsumptionFitnessThreshold)
 						&& (aClassifier.experience > subsumptionExperienceThreshold) && (aClassifier.timestamp > 0));
 	}
+	
+	
+	/**
+	 * Delete classifiers from every match set formed.
+	 * 
+	 */
+	private void controlPopulationInMatchSet (final ClassifierSet population, final ClassifierSet matchSet) {
+		double lowestCoverage = Double.MAX_VALUE;
 
+		for (int i = 0; i < matchSet.getNumberOfMacroclassifiers(); i++) {
+			
+			final Classifier cl = matchSet.getClassifier(i);
+			if (cl.objectiveCoverage > 0 && cl.objectiveCoverage <= lowestCoverage) {
+				
+				if (cl.objectiveCoverage < lowestCoverage) {
+					lowestCoverageIndices.clear();
+				}
+				
+				lowestCoverage = cl.objectiveCoverage;
+				lowestCoverageIndices.add(i);
+			}
+		}
+		
+		if (lowestCoverageIndices.size() > 1) {
+			
+			double lowestFitness = Double.MAX_VALUE;
+			int toBeDeleted = -1;
+
+			for (int i = 0; i < lowestCoverageIndices.size(); i++) {
+				
+				final Macroclassifier macro = matchSet.getMacroclassifier(lowestCoverageIndices.get(i));
+				final Classifier cl = macro.myClassifier;
+
+				if (cl.getComparisonValue(AbstractUpdateStrategy.COMPARISON_MODE_PURE_FITNESS) <= lowestFitness) {
+
+					lowestFitness = cl.getComparisonValue(AbstractUpdateStrategy.COMPARISON_MODE_PURE_FITNESS);
+					toBeDeleted = lowestCoverageIndices.get(i);
+				}
+			}
+			
+			if (toBeDeleted >= 0) {
+				myLcs.numberOfClassifiersDeletedInMatchSets++;
+				population.deleteClassifier(matchSet.getMacroclassifier(toBeDeleted).myClassifier);
+				matchSet.deleteClassifier(toBeDeleted);
+			}
+		}
+		lowestCoverageIndices.clear();
+	}
+	
+	
 
 }

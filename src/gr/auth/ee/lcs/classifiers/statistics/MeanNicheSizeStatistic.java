@@ -1,5 +1,5 @@
 /*
- *	Copyright (C) 2011 by F. Tzima and M. Allamanis
+ *	Copyright (C) 2011 by F. Tzima, M. Allamanis and A. Filotheou
  *
  *	Permission is hereby granted, free of charge, to any person obtaining a copy
  *	of this software and associated documentation files (the "Software"), to deal
@@ -31,7 +31,7 @@ import gr.auth.ee.lcs.data.ILCSMetric;
 /**
  * Retrieve the mean niche size statistic.
  * 
- * @author Alexandros Philotheou
+ * @author A. Filotheou
  * 
  */
 public class MeanNicheSizeStatistic implements ILCSMetric {
