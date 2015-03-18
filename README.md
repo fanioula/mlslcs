@@ -12,11 +12,7 @@ and further improved in
 * Tzima, F.A., Allamanis, M., Filotheou, A., & Mitkas, P. A. (Under review). Inducing Generalized Multi-Label Rules with Learning Classifier Systems. Evolutionary Computation.
 
 USAGE
-<<<<<<< HEAD
 ------
-=======
------
->>>>>>> refs/remotes/origin/master
 Setup the desired system and experiment properties in the “defaultLcs.properties” file and run the command:
 ```	
 java -jar mlslcs.jar
